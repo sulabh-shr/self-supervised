@@ -56,14 +56,14 @@ class PixelBboxAssoc:
         self.proposals_neighbor_img = proposals_neighbor_img
         self.neg_bbox_iou_thresh = neg_bbox_iou_thresh
 
-        self.image_struct_dict = dict()
+        self.image_struct_dict = dict()  # k=folder, v={'img_struct', 'scale'}
         self.avd_annotation = dict()
-        self.image_folder_map = dict()
+        self.image_folder_map = dict()   # k='img_name', v='img_folder
         self.proposal_filenames = []
         self.proposal_img_filenames = []
         self.neighbors_dict = dict()
 
-        print(f'Loading Image Parameters and Annotations...')
+        # print(f'Loading Image Parameters and Annotations...')
 
         # Load image folder map from coco annotation for both train and test
         for j in ['instances_set_1_train.json', 'instances_set_1_test.json']:
@@ -83,7 +83,7 @@ class PixelBboxAssoc:
                     self.avd_annotation.update(json.load(f))
 
         # Get neighbors of each proposal img
-        print(f'Creating Neighbors list...')
+        # print(f'Creating Neighbors list...')
 
         for i in os.listdir(proposals_root):
 
@@ -97,11 +97,11 @@ class PixelBboxAssoc:
                                             hierarchy=self.hierarchy)
 
     def sample_neighbors(self, img_name):
-        import pprint
+        # import pprint
         neighbors_hierarchy = self.neighbors_dict[img_name]
 
-        print('Neighbors hierarchy list:')
-        pprint.pprint(neighbors_hierarchy)
+        # print('Neighbors hierarchy list:')
+        # pprint.pprint(neighbors_hierarchy)
         sampled_neighbors = []
 
         for i, num_sample in enumerate(self.sample_per_hierarchy):
@@ -143,7 +143,7 @@ class PixelBboxAssoc:
                                                     total=len(proposal_filenames)):
             # print(f'Fetching samples for {img_filename}')
             logger.info(f'Fetching samples for {img_filename}')
-            print(f'Fetching samples for {img_filename}')
+            # print(f'Fetching samples for {img_filename}')
 
             bboxes = self.load_pt_file(proposal_filename)
             bboxes = bboxes[:self.proposals_per_img]
@@ -153,6 +153,12 @@ class PixelBboxAssoc:
             img_struct = img_struct_folder['image_struct']
             img_scale = img_struct_folder['scale']
             tc1w, Rc1w = get_tR(img_filename, img_struct)
+
+            if len(tc1w) == 0:
+                logger.debug(f'tR not available for img: {img_filename}')
+                print(f'tR not available for img: {img_filename}')
+                continue
+
             tc1w *= img_scale
 
             twc1, Rwc1 = camera_to_world_tR(tc1w, Rc1w)
@@ -191,7 +197,7 @@ class PixelBboxAssoc:
                                i in neighbor_img_path]
 
             logger.info(f'Sampled Neighbors : {neighbor_names}')
-            print(f'Sampled Neighbors : {neighbor_names}')
+            # print(f'Sampled Neighbors : {neighbor_names}')
 
             bboxes_px_idx = bbox_pixel_indices_list(np.array(bboxes), x_flat=x,
                                                     y_flat=y,
@@ -218,9 +224,15 @@ class PixelBboxAssoc:
 
                 # print(f'\nCalculating for neighbor {neighbor_name}')
                 logger.info(f'\nCalculating for neighbor {neighbor_name}')
-                print(f'\nCalculating for neighbor {neighbor_name}')
+                # print(f'\nCalculating for neighbor {neighbor_name}')
 
                 tc2w, Rc2w = get_tR(neighbor_name, img_struct)
+
+                if len(tc2w) == 0:
+                    logger.debug(f'tR not available for neighbor {neighbor_name}')
+                    print(f'tR not available for neighbor {neighbor_name}')
+                    continue
+
                 tc2w *= img_scale
                 tc2c1, Rc2c1 = inter_camera_tR(twc1, Rwc1, tc2w, Rc2w)
 
@@ -233,7 +245,7 @@ class PixelBboxAssoc:
                     self.convert_jpg_pt(neighbor_name))
                 if neighbor_bboxes is None:
                     # print(f'File not found maybe because no proposals in image!!')
-                    logger.exception(f'File not found maybe because no proposals in image!!')
+                    logger.exception(f'Proposal file: {neighbor_name} not found!!')
                     continue
 
                 neighbor_bboxes = neighbor_bboxes[:self.proposals_neighbor_img]
