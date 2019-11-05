@@ -373,7 +373,7 @@ class PixelBboxAssoc:
                         plt.close()
                     to_save[neighbor_name].append(
                         [current_bbox, neighbor_bboxes[matched_bbox_idx],
-                         neg_bbox_idx])
+                         neg_bbox])
 
             pickle_filename = proposal_filename.split('.')[0] + '.pickle'
             pickle_path = os.path.join(self.triplet_root, pickle_filename)
