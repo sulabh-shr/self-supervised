@@ -22,7 +22,7 @@ from active_vision_utils.plot_utils import scatterplot_in_img, bboxplot_in_img
 
 scene_list = ('Home', 'Office')
 SAVE_FIG = False
-PLOT_FIG = False
+PLOT_FIG = True
 # np.random.seed(1)
 
 
@@ -283,10 +283,15 @@ class PixelBboxAssoc:
                     # print(f'Num pixels = {valid_projected_pxl}')
                     logger.debug(f'Num pixels = {valid_projected_pxl}')
 
-                    matched_pixels_iou = []
+                    matched_pixels_iou = np.zeros(len(neighbor_bboxes))
 
-                    # Iterate over each of neighbor image bbox
-                    for neighbor_bbox in neighbor_bboxes:
+                    # Iterate over each of SHUFFLED neighbor image bbox
+                    neighbor_bbox_indices = np.random.choice(list(range(len(neighbor_bboxes))),
+                                                         size=len(neighbor_bboxes),
+                                                         replace=False)
+                    for neighbor_bbox_idx in neighbor_bbox_indices:
+                        neighbor_bbox = neighbor_bboxes[neighbor_bbox_idx]
+
                         area = (neighbor_bbox[2] - neighbor_bbox[0]) * (
                                 neighbor_bbox[3] - neighbor_bbox[1])
                         inside_proj_x = np.logical_and(
@@ -298,7 +303,7 @@ class PixelBboxAssoc:
                         num_inside = np.sum(
                             np.logical_and(inside_proj_x, inside_proj_y))
                         # TODO: Note that only using area didn't produce good result because always prioritized smallest box with max pixels inside
-                        matched_pixels_iou.append(num_inside / (
+                        matched_pixels_iou[neighbor_bbox_idx] = (num_inside / (
                                     area + (valid_projected_pxl - num_inside)))
 
                     matched_pixels = np.array(matched_pixels_iou)
