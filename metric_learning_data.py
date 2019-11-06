@@ -2,14 +2,17 @@ import os
 import torch
 import json
 import pickle
-from torch.utils.data import Dataset, DataLoader
+import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
+from torchvision.transforms import transforms
+from torch.utils.data import Dataset
 
 
 class ActiveVisionTriplet(Dataset):
 
-    def __init__(self, dataset_root, triplet_root, instance, size):
+    def __init__(self, dataset_root, triplet_root, instance, image_size,
+                 triplet_image_size):
         self.dataset_root = dataset_root
         self.triplet_root = triplet_root
         if instance == 'instance1':
@@ -18,7 +21,14 @@ class ActiveVisionTriplet(Dataset):
                 self.img_folder_map = json.load(f)['img_folder_map']
         else:
             raise ValueError(f'Invalid instance: {instance}')
-        self.size = size
+
+        self.image_size = image_size
+        self.triplet_image_size = triplet_image_size
+
+        self.transforms = transforms.Compose([
+            transforms.Resize(self.triplet_image_size),
+            transforms.ToTensor(), transforms.Normalize(mean=(0.5, 0.5, 0.5),
+                                                        std=(0.5, 0.5, 0.5))])
 
         self.pickle_names = [i for i in sorted(os.listdir(triplet_root)) if
                              i.endswith('pickle')]
@@ -45,6 +55,12 @@ class ActiveVisionTriplet(Dataset):
         return len(self.triplets)
 
     def __getitem__(self, idx):
+        ref_crop, pos_crop, neg_crop = self.get_triplet_img(idx)
+
+        return self.transforms(ref_crop), self.transforms(
+            pos_crop), self.transforms(neg_crop)
+
+    def get_triplet_img(self, idx):
         triplet = self.triplets[idx]
 
         ref_img_folder = self.img_folder_map[triplet['ref'][0]]
@@ -53,18 +69,24 @@ class ActiveVisionTriplet(Dataset):
         ref_bbox = triplet['ref'][1]
         pos_bbox = triplet['pos'][1]
         neg_bbox = triplet['neg'][1]
-        print(ref_bbox)
-
-        # ref_bbox = [ref_bbox[0], ref_bbox[2]-ref_bbox[0], ref_bbox[3], ref_bbox[3]-ref_bbox[1]]
 
         ref_img = Image.open(os.path.join(self.dataset_root, ref_img_folder,
                                           'jpg_rgb',
-                                          triplet['ref'][0])).resize(self.size)
+                                          triplet['ref'][0])).resize(
+            self.image_size)
         pos_img = Image.open(os.path.join(self.dataset_root, pos_img_folder,
                                           'jpg_rgb',
-                                          triplet['pos'][0])).resize(self.size)
-        return ref_img.crop(ref_bbox), pos_img.crop(pos_bbox), ref_img.crop(
-            neg_bbox)
+                                          triplet['pos'][0])).resize(
+            self.image_size)
+        # ref_crop = ref_img.crop(ref_bbox).resize(self.triplet_image_size)
+        # pos_crop = pos_img.crop(pos_bbox).resize(self.triplet_image_size)
+        # neg_crop = ref_img.crop(neg_bbox).resize(self.triplet_image_size)
+
+        ref_crop = ref_img.crop(ref_bbox)
+        pos_crop = pos_img.crop(pos_bbox)
+        neg_crop = ref_img.crop(neg_bbox)
+
+        return ref_crop, pos_crop, neg_crop
 
     def visualize_triplet(self, idx):
         import matplotlib.pyplot as plt
@@ -84,10 +106,12 @@ class ActiveVisionTriplet(Dataset):
         # TODO: Make negative image independent of ref image
         ref_img = Image.open(os.path.join(self.dataset_root, ref_img_folder,
                                           'jpg_rgb',
-                                          triplet['ref'][0])).resize(self.size)
+                                          triplet['ref'][0])).resize(
+            self.image_size)
         pos_img = Image.open(os.path.join(self.dataset_root, pos_img_folder,
                                           'jpg_rgb',
-                                          triplet['pos'][0])).resize(self.size)
+                                          triplet['pos'][0])).resize(
+            self.image_size)
 
         fig, [ax1, ax2] = plt.subplots(1, 2, figsize=(25, 14))
 
@@ -139,10 +163,9 @@ class ActiveVisionTriplet(Dataset):
 
 
 if __name__ == '__main__':
-
     a = ActiveVisionTriplet('/mnt/sda2/workspace/DATASETS/ActiveVision',
                             '/home/sulabh/workspace-ubuntu/triplets',
-                            instance='instance1', size=(1333, 750))
+                            instance='instance1', image_size=(1333, 750))
 
     # a.visualize_multi_triplets(num=3, random=True)
     a.visualize_triplet(100)
