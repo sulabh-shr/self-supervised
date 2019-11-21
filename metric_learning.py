@@ -3,14 +3,16 @@ from torchvision import models
 
 
 class MetricLearningNet(nn.Module):
-    def __init__(self):
+    def __init__(self, pretrained=True):
         super(MetricLearningNet, self).__init__()
-        self.embedder = models.resnet50(pretrained=False)
+        self.pretrained = pretrained
+
+        self.embedder = models.resnet50(pretrained=pretrained)
 
     def forward(self, ref, pos, neg):
         ref_emb = self.embedder(ref)
-        ref_pos = self.embedder(pos)
-        ref_neg = self.embedder(neg)
+        pos_emb = self.embedder(pos)
+        neg_emb = self.embedder(neg)
 
-        return ref_emb, ref_pos, ref_neg
+        return ref_emb, pos_emb, neg_emb
 
