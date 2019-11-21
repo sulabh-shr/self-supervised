@@ -104,5 +104,4 @@ venv.bak/
 .mypy_cache/
 
 active_vision_utils
-active_vision_utils/
 .idea/
